@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Charting – Hundal 4A</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --header-bg: #a8a8a8;
+      --row:       #f3f3f3;
+      --row-alt:   #dedede;
+      --chart-pct: 60%;
+      --split-pct: 60%;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%; width: 100%;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      color: #222;
+      background: #eee;
+    }
+
+    .shell {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    /* ════════════════════════════════
+       FILTER PANEL
+    ════════════════════════════════ */
+    .filter-panel {
+      display: flex;
+      height: 190px;
+      flex-shrink: 0;
+      border-bottom: 2px solid #bbb;
+      overflow: hidden;
+    }
+
+    .comp-col {
+      width: 230px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #bbb;
+    }
+    .fp-header {
+      height: 30px;
+      background: #3a3a3a;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .fp-header .gear { opacity: .65; cursor: pointer; font-size: 15px; }
+    .fp-search {
+      height: 26px;
+      border: none;
+      border-bottom: 1px solid #ddd;
+      padding: 0 8px;
+      font-size: 11px;
+      outline: none;
+      background: #f8f8f8;
+      flex-shrink: 0;
+      font-family: inherit;
+    }
+    .comp-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .comp-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      font-size: 11px;
+      color: #333;
+      cursor: pointer;
+    }
+    .comp-item:hover { background: #f0f4ff; }
+    .comp-item input[type=checkbox] { width: 12px; height: 12px; accent-color: #1a6bbf; }
+    .comp-chevron { font-size: 9px; color: #888; margin-right: 2px; }
+
+    .builtin-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .builtin-top-bar {
+      height: 30px;
+      background: #3a3a3a;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .builtin-actions { display: flex; gap: 10px; }
+    .builtin-action {
+      font-size: 11px;
+      color: #9ecfff;
+      cursor: pointer;
+      font-weight: 400;
+    }
+    .builtin-action:hover { color: #fff; }
+    .builtin-search-row {
+      height: 26px;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+      background: #f8f8f8;
+      flex-shrink: 0;
+    }
+    .builtin-search {
+      flex: 1;
+      border: none;
+      padding: 0 8px;
+      font-size: 11px;
+      outline: none;
+      background: transparent;
+      font-family: inherit;
+    }
+    .builtin-cols-wrap { flex: 1; display: flex; overflow: hidden; }
+    .bi-col {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #e8e8e8;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .bi-col:last-of-type { border-right: none; }
+    .bi-col-hd {
+      height: 24px;
+      background: #f0f0f0;
+      border-bottom: 1px solid #e0e0e0;
+      font-size: 11px;
+      font-weight: 700;
+      color: #444;
+      display: flex;
+      align-items: center;
+      padding: 0 7px;
+      flex-shrink: 0;
+      justify-content: space-between;
+    }
+    .bi-col-hd .arr { color: #999; font-size: 9px; }
+    .bi-col-body { flex: 1; overflow-y: auto; padding: 2px 0; }
+    .bi-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 7px;
+      font-size: 11px;
+      color: #333;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .bi-item:hover { background: #f0f4ff; }
+    .bi-item input[type=checkbox] { width: 11px; height: 11px; accent-color: #1a6bbf; }
+    .panel-arrow {
+      width: 18px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0f0f0;
+      border-left: 1px solid #ddd;
+      cursor: pointer;
+      font-size: 11px;
+      color: #666;
+    }
+    .panel-arrow:hover { background: #ddd; }
+
+    /* ════════════════════════════════
+       TABS
+    ════════════════════════════════ */
+    .tab-bar {
+      display: flex;
+      align-items: flex-end;
+      height: 32px;
+      border-bottom: 2px solid #ddd;
+      padding: 0 10px;
+      flex-shrink: 0;
+      background: #fff;
+    }
+    .tab {
+      height: 30px;
+      padding: 0 16px;
+      display: inline-flex;
+      align-items: center;
+      font-size: 13px;
+      color: #666;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      user-select: none;
+    }
+    .tab:hover { color: #333; }
+    .tab.active { color: #1a6bbf; border-bottom-color: #1a6bbf; font-weight: 600; }
+
+    /* ════════════════════════════════
+       TOOLBAR
+    ════════════════════════════════ */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      height: 36px;
+      padding: 0 8px;
+      border-bottom: 1px solid #eee;
+      flex-shrink: 0;
+      background: #fff;
+      white-space: nowrap;
+    }
+    .toolbar-left, .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .btn, .select-pill, .date-pill {
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid #999;
+      background: #fff;
+      color: #333;
+      border-radius: 999px;
+      padding: 0 9px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn:hover, .select-pill:hover, .date-pill:hover { background: #f4f4f4; }
+
+    .icon-btn {
+      width: 24px; height: 24px;
+      border: 1px solid #999;
+      background: #fff;
+      border-radius: 3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .toggle-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: #333;
+      font-size: 11px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .switch {
+      width: 26px; height: 13px;
+      border-radius: 999px;
+      background: #bbb;
+      position: relative;
+      display: inline-block;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .switch::after {
+      content: '';
+      width: 9px; height: 9px;
+      background: #fff;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px; left: 2px;
+      transition: transform .15s;
+    }
+    .switch.on { background: #1a6bbf; }
+    .switch.on::after { transform: translateX(13px); }
+
+    /* LOCK BUTTON */
+    .lock-btn {
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid #999;
+      background: #fff;
+      color: #333;
+      border-radius: 999px;
+      padding: 0 9px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .lock-btn.locked { background: #2d2d2d; color: #fff; border-color: #2d2d2d; }
+
+    /* ════════════════════════════════
+       CONTENT AREA
+    ════════════════════════════════ */
+    .content {
+      flex: 1 1 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .content.side-by-side         { flex-direction: row; }
+    .content.table-top            { flex-direction: column-reverse; }
+    .content.side-by-side.reverse { flex-direction: row-reverse; }
+
+    /* panel cards */
+    .panel-card {
+      background: #fff;
+      position: relative;
+      min-height: 0;
+      min-width: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    /* top/bottom: chart fixed basis, table fills remainder */
+    .content:not(.side-by-side) .chart-card { flex: 0 0 var(--chart-pct); min-height: 80px; max-height: calc(100% - 80px); }
+    .content:not(.side-by-side) .table-card { flex: 1 1 0; min-height: 60px; }
+    /* side-by-side: chart fixed basis, table fills remainder */
+    .content.side-by-side .chart-card { flex: 0 0 var(--split-pct); min-width: 160px; max-width: calc(100% - 160px); }
+    .content.side-by-side .table-card { flex: 1 1 0; min-width: 140px; }
+
+    /* drag handle */
+    .panel-header { height: 0; position: relative; z-index: 2; flex-shrink: 0; }
+    .move-icon {
+      position: absolute;
+      right: 10px; top: 5px;
+      width: 28px; height: 24px;
+      border: 0;
+      background: transparent;
+      border-radius: 8px;
+      display: inline-grid;
+      grid-template-columns: repeat(2, 4px);
+      grid-template-rows: repeat(3, 4px);
+      gap: 3px;
+      align-content: center;
+      justify-content: center;
+      cursor: grab;
+      opacity: 0;
+      transition: opacity .16s ease, background .16s ease;
+      z-index: 5;
+    }
+    .panel-card:hover .move-icon { opacity: 1; }
+    .move-icon:hover  { background: rgba(0,0,0,.06); }
+    .move-icon:active { cursor: grabbing; background: rgba(0,0,0,.1); }
+    .move-icon i { width: 4px; height: 4px; background: #6b7280; border-radius: 50%; display: block; }
+    .move-icon.locked { cursor: not-allowed; pointer-events: none; opacity: 0 !important; }
+
+    .panel-card.dragging  { opacity: .7; box-shadow: 0 12px 32px rgba(0,0,0,.16); transform: scale(.996); }
+    .panel-card.drag-over { outline: 2px dashed #8aaed8; outline-offset: -4px; background: #f8fcff; }
+
+    /* chart */
+    #chart { width: 100%; flex: 1 1 0; min-height: 0; }
+
+    /* legend — see overrides at bottom of <style> */
+    .legend-item.dim { opacity: .22; filter: grayscale(1) brightness(1.1); }
+    .legend-bar  { width: 4px; border-radius: 2px; }
+    .legend-value { font-weight: 700; font-size: 12px; margin-top: 2px; }
+    .legend-item {
+      display: grid;
+      grid-template-columns: 4px auto;
+      gap: 5px;
+      align-items: stretch;
+      font-size: 11px;
+      line-height: 1.18;
+      cursor: pointer;
+      min-width: 110px;
+    }
+
+    /* RESIZER */
+    .resizer {
+      flex-shrink: 0;
+      background: #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      transition: background .13s;
+    }
+    .resizer.h { width: 100%; height: 7px; cursor: ns-resize; }
+    .resizer.v { height: 100%; width: 7px; cursor: ew-resize; }
+    .resizer:hover, .resizer.active { background: #a8c4e0; }
+    .grip { display: flex; gap: 3px; }
+    .resizer.h .grip { flex-direction: row; }
+    .resizer.v .grip { flex-direction: column; }
+    .grip span { background: #aaa; border-radius: 2px; }
+    .resizer.h .grip span { width: 22px; height: 2px; }
+    .resizer.v .grip span { width: 2px; height: 22px; }
+    .resizer:hover .grip span, .resizer.active .grip span { background: #3a7bbf; }
+    .resizer.disabled { background: #ebebeb; cursor: not-allowed; pointer-events: none; }
+    .resizer.disabled .grip span { background: #ccc; }
+
+    /* TABLE CARD */
+    .table-card {
+      border-top: 1px solid #ccc;
+      min-height: 0;
+    }
+    .table-card-header {
+      background: #fafafa;
+      border-bottom: 1px solid #e8e8e8;
+      padding: 0 12px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      font-weight: 700;
+      font-size: 11px;
+      color: #333;
+    }
+    .table-row-count { font-size: 10px; color: #888; font-weight: 400; }
+    .scroll-badge {
+      font-size: 10px;
+      background: #deeaf7;
+      color: #356;
+      border-radius: 99px;
+      padding: 1px 7px;
+      margin-left: 5px;
+      font-weight: 400;
+    }
+    /* table-wrap fills all remaining panel height and scrolls */
+    .table-wrap {
+      flex: 1 1 0;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th {
+      background: var(--header-bg);
+      color: #1f1f1f;
+      font-weight: 700;
+      height: 28px;
+      border-right: 1px solid #eee;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+    td {
+      height: 26px;
+      padding: 3px 10px;
+      border-right: 1px solid #fff;
+      text-align: center;
+      color: #1f2937;
+    }
+    tbody tr:nth-child(odd)  td { background: var(--row); }
+    tbody tr:nth-child(even) td { background: var(--row-alt); }
+    tbody tr:hover           td { background: #c8d8ea; }
+
+    /* ── Collapsible filter panel ── */
+    .filter-panel {
+      transition: height .22s ease, opacity .18s ease;
+      overflow: hidden;
+    }
+    .filter-panel.collapsed {
+      height: 0 !important;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .filter-toggle-bar {
+      height: 20px;
+      background: #3a3a3a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      user-select: none;
+      gap: 6px;
+      font-size: 10px;
+      color: #ccc;
+      letter-spacing: .04em;
+      border-bottom: 1px solid #555;
+    }
+    .filter-toggle-bar:hover { background: #4a4a4a; color: #fff; }
+    .filter-toggle-bar .arrow { font-size: 9px; transition: transform .22s; }
+    .filter-toggle-bar.collapsed .arrow { transform: rotate(180deg); }
+
+    /* ── Tooltip (title attr replacement) ── */
+    .has-tip { position: relative; }
+    .has-tip .tip-box {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #222;
+      color: #fff;
+      font-size: 10px;
+      line-height: 1.45;
+      padding: 6px 9px;
+      border-radius: 5px;
+      white-space: nowrap;
+      max-width: 220px;
+      white-space: normal;
+      width: max-content;
+      max-width: 210px;
+      z-index: 9999;
+      pointer-events: none;
+      box-shadow: 0 3px 10px rgba(0,0,0,.25);
+    }
+    .has-tip .tip-box::after {
+      content: '';
+      position: absolute;
+      top: 100%; left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: #222;
+    }
+    .has-tip:hover .tip-box { display: block; }
+
+    /* ── Legend: 2 rows visible, vertical scroll for more ── */
+    .legend-outer {
+      flex-shrink: 0;
+      border-top: 1px solid #eee;
+    }
+    .legend-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 14px 3px;
+    }
+    .legend-time {
+      font-weight: 700;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .legend-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 10px 18px;
+      padding: 8px 16px 6px;
+      overflow-y: scroll;
+      overflow-x: hidden;
+      transition: none;
+    }
+    .legend-row::-webkit-scrollbar { width: 3px; }
+    .legend-row::-webkit-scrollbar-track { background: transparent; }
+    .legend-row::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+    .legend-item { flex-shrink: 0; }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ═══════════════ FILTER PANEL ═══════════════ -->
+  <div class="filter-toggle-bar" id="filterToggleBar" title="Show/hide filter panel">
+    <span class="arrow">▲</span>
+    <span>Components &amp; Measurements</span>
+  </div>
+  <div class="filter-panel" id="filterPanel">
+    <div class="comp-col">
+      <div class="fp-header">Components <span class="gear">⚙</span></div>
+      <input class="fp-search" type="text" placeholder="Search Components…"/>
+      <div class="comp-list">
+        <div class="comp-item">
+          <span class="comp-chevron">▼</span>
+          <input type="checkbox" checked/>
+          <span>Production Meter (1)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="builtin-col">
+      <div class="builtin-top-bar">
+        Built-In
+        <div class="builtin-actions">
+          <span class="builtin-action">☆ Save Filter</span>
+          <span class="builtin-action">✕ Clear Filter</span>
+        </div>
+      </div>
+      <div class="builtin-search-row">
+        <input class="builtin-search" type="text" placeholder="Search Built-In…"/>
+      </div>
+      <div class="builtin-cols-wrap">
+        <div class="bi-col" style="min-width:155px;flex:1.4">
+          <div class="bi-col-hd">Measurements</div>
+          <div class="bi-col-body">
+            <div class="bi-item"><input type="checkbox"/> Apparent Power Total 3-Phase</div>
+            <div class="bi-item"><input type="checkbox"/> Current Neutral</div>
+            <div class="bi-item"><input type="checkbox"/> Current Phase 1</div>
+            <div class="bi-item"><input type="checkbox"/> Current Phase 2</div>
+            <div class="bi-item"><input type="checkbox"/> Current Phase 3</div>
+            <div class="bi-item"><input type="checkbox"/> Energy Total 3-Phase Accumulated</div>
+            <div class="bi-item"><input type="checkbox"/> Energy Total 3-Phase Interval</div>
+            <div class="bi-item"><input type="checkbox"/> Frequency</div>
+          </div>
+        </div>
+        <div class="bi-col" style="min-width:46px;flex:.5">
+          <div class="bi-col-hd">AC</div>
+          <div class="bi-col-body"></div>
+        </div>
+        <div class="bi-col" style="min-width:46px;flex:.45">
+          <div class="bi-col-hd">DC</div>
+          <div class="bi-col-body"></div>
+        </div>
+        <div class="bi-col" style="min-width:74px;flex:.75">
+          <div class="bi-col-hd">Calculations</div>
+          <div class="bi-col-body"></div>
+        </div>
+        <div class="bi-col" style="min-width:56px;flex:.55">
+          <div class="bi-col-hd">Losses</div>
+          <div class="bi-col-body"></div>
+        </div>
+        <div class="bi-col" style="min-width:190px;flex:2">
+          <div class="bi-col-hd">Hardware Register <span class="arr">▶</span></div>
+          <div class="bi-col-body">
+            <div class="bi-item"><input type="checkbox" checked/> <strong style="font-size:10px">Shark 100 (Energy field – W_hours_total)</strong></div>
+            <div class="bi-item"><input type="checkbox"/> Amps A, %THD</div>
+            <div class="bi-item"><input type="checkbox"/> Amps A, Average</div>
+            <div class="bi-item"><input type="checkbox"/> Amps A, Max Avg Demand</div>
+            <div class="bi-item"><input type="checkbox"/> Amps A, Min Avg Demand</div>
+            <div class="bi-item"><input type="checkbox"/> Amps B, %THD</div>
+            <div class="bi-item"><input type="checkbox"/> Amps B, Average</div>
+            <div class="bi-item"><input type="checkbox"/> Amps B, Max Avg Demand</div>
+          </div>
+        </div>
+        <div class="panel-arrow">‹</div>
+        <div class="panel-arrow">›</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TABS ═══════════════ -->
+  <div class="tab-bar">
+    <div class="tab active" id="tabChart">Chart</div>
+    <div class="tab" id="tabTable">Table</div>
+  </div>
+
+  <!-- ═══════════════ TOOLBAR ═══════════════ -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <button class="icon-btn" title="Download">⇩</button>
+      <button class="btn">Setting</button>
+      <button class="btn">Export</button>
+      <button class="select-pill">Name – Ascending ⌄</button>
+
+      <span class="toggle-wrap"><span class="switch" id="swExpected"></span> Expected kW</span>
+      <span class="toggle-wrap"><span class="switch" id="swEvents"></span> Events</span>
+      <span class="toggle-wrap"><span class="switch" id="swFilter"></span> Filter</span>
+      <span class="toggle-wrap"><span class="switch on" id="swGroup"></span> Group By Field</span>
+      <span class="toggle-wrap"><span class="switch" id="swDayNight"></span> Day/Night</span>
+      <span class="toggle-wrap"><span class="switch on" id="swAdditional"></span> Show Additional Data</span>
+      <span class="toggle-wrap"><span class="switch" id="focusSwitch"></span> Focus Mode</span><span class="has-tip" style="display:inline-flex;align-items:center;margin-left:2px;cursor:default">
+        <span style="width:14px;height:14px;border-radius:50%;background:#aaa;color:#fff;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">i</span>
+        <span class="tip-box">Hover over a line to isolate that device's data.</span>
+      </span>
+
+      <span class="has-tip" style="display:inline-flex;align-items:center;gap:4px">
+        <button class="lock-btn" id="lockBtn">🔓 Lock Layout</button>
+        <span style="width:14px;height:14px;border-radius:50%;background:#aaa;color:#fff;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0;cursor:default">i</span>
+        <span class="tip-box">Prevents panel rearrangement.<br>When locked, panels cannot be dragged or resized.</span>
+      </span>
+    </div>
+    <div class="toolbar-right">
+      <button class="select-pill">3 Days ⌄</button>
+      <button class="select-pill">15 Minutes ⌄</button>
+      <button class="date-pill">← May 17, 2026 – May 19, 2026</button>
+      <span style="font-size:18px;cursor:pointer;color:#555">≡</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════ CONTENT ═══════════════ -->
+  <div id="content" class="content">
+
+    <!-- CHART PANEL -->
+    <section class="panel-card chart-card">
+      <div class="panel-header">
+        <button class="move-icon" draggable="true" data-panel="chart" title="Drag to reorder" aria-label="Drag chart panel">
+          <i></i><i></i><i></i><i></i><i></i><i></i>
+        </button>
+      </div>
+      <div id="chart"></div>
+      <div class="legend-outer" id="legendOuter">
+        <div class="legend-top-bar">
+          <div class="legend-time" id="legendTime">05/17/2026 01:30 PM</div>
+        </div>
+        <div class="legend-row" id="legendRow"></div>
+      </div>
+    </section>
+
+    <!-- RESIZER -->
+    <div id="resizer" class="resizer h" title="Drag to resize panels">
+      <div class="grip"><span></span><span></span><span></span></div>
+    </div>
+
+    <!-- TABLE PANEL -->
+    <section class="panel-card table-card" id="tablePanel">
+      <div class="panel-header">
+        <button class="move-icon" draggable="true" data-panel="table" title="Drag to reorder" aria-label="Drag table panel">
+          <i></i><i></i><i></i><i></i><i></i><i></i>
+        </button>
+      </div>
+      <div class="table-card-header">
+        <span>Additional Data <span id="scrollBadge" class="scroll-badge"></span></span>
+        <span id="rowCountLabel" class="table-row-count"></span>
+      </div>
+      <div class="table-wrap" id="tableWrap">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th style="width:22%">Parameter</th>
+              <th style="width:32%">Device</th>
+              <th style="width:16%">Value</th>
+              <th style="width:30%">Timestamp</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+</div><!-- /shell -->
+
+<script>
+  // ─────────────────────────────────────────────
+  // SERIES META
+  // ─────────────────────────────────────────────
+  const seriesMeta = [
+    { name: 'Shark 100 Inverter 01', color: '#6fa8dc', value: '51.58 kW', device: 'Real Power Total 3-Phase' },
+    { name: 'Shark 100 Inverter 02', color: '#3f4f62', value: '49.80 kW', device: 'Real Power Total 3-Phase' },
+    { name: 'Shark 100 Inverter 03', color: '#7be570', value: '52.10 kW', device: 'Real Power Total 3-Phase' },
+    { name: 'Shark 100 Inverter 04', color: '#f28b45', value: '48.34 kW', device: 'Real Power Total 3-Phase' },
+    { name: 'Shark 100 Inverter 05', color: '#7d87ff', value: '50.22 kW', device: 'Real Power Total 3-Phase' },
+    { name: 'Shark 100 Inverter 06', color: '#ff5a7d', value: '47.91 kW', device: 'Real Power Total 3-Phase' },
+    { name: 'Shark 100 Inverter 07', color: '#e8b84b', value: '53.04 kW', device: 'Real Power Total 3-Phase' },
+    { name: 'Shark 100 Inverter 08', color: '#5ce6c8', value: '51.88 kW', device: 'Real Power Total 3-Phase' },
+    { name: 'Shark 100 Inverter 09', color: '#c97de8', value: '50.00 kW', device: 'Real Power Total 3-Phase' },
+    { name: 'Shark 100 Inverter 10', color: '#e86b5c', value: '46.75 kW', device: 'Real Power Total 3-Phase' },
+    { name: 'Shark 100 Inverter 11', color: '#88c057', value: '52.40 kW', device: 'Real Power Total 3-Phase' },
+    { name: 'Shark 100 Inverter 12', color: '#4dbde8', value: '49.10 kW', device: 'Real Power Total 3-Phase' },
+    { name: 'Hukseflux SR-30 GHI',   color: '#a0a0f0', value: '820 W/m²', device: 'Solar Irradiance'        },
+    { name: 'IMT BOM Temperature',   color: '#f09090', value: '38.2 °C',  device: 'Panel Temperature'       },
+  ];
+
+  // ─────────────────────────────────────────────
+  // TABLE ROWS
+  // ─────────────────────────────────────────────
+  const tableRows = [];
+  for (let i = 1; i <= 52; i++) {
+    const p = String(i).padStart(2, '0');
+    const v = (46 + Math.random() * 8).toFixed(2);
+    tableRows.push({ param: 'Real Power Total 3-Phase', device: `Shark 100 PV Meter (S/N:013${4000+i}) (Meter ${p})`, value: `${v} kW`, ts: '05/17/2026 01:30 PM' });
+  }
+  const tbody = document.getElementById('tableBody');
+  tableRows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.param}</td><td>${r.device}</td><td>${r.value}</td><td>${r.ts}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('rowCountLabel').textContent = `${tableRows.length} rows`;
+  if (tableRows.length > 10) document.getElementById('scrollBadge').textContent = `scroll for ${tableRows.length - 10} more`;
+
+  // ─────────────────────────────────────────────
+  // CHART INIT
+  // ─────────────────────────────────────────────
+  const chartDom  = document.getElementById('chart');
+  const chart     = echarts.init(chartDom, null, { renderer: 'canvas' });
+  const content   = document.getElementById('content');
+  const focusSwitch = document.getElementById('focusSwitch');
+  const legendRow = document.getElementById('legendRow');
+
+  let focusMode    = false;
+  let hoveredSeries = null;
+  let pinnedSeries  = null;
+  let layoutIndex   = 0;
+  const layouts     = ['default', 'table-top', 'side-by-side', 'side-by-side reverse'];
+  let draggedPanel  = null;
+  let isLocked      = false;
+
+  // Returns the series name to highlight, or null if none
+  // - pinnedSeries: explicitly clicked/pinned
+  // - hoveredSeries: mouse is over this line right now
+  // - focusMode ON: hoveredSeries also acts as a pin (doesn't clear on mouseout)
+  function getActiveSeries() {
+    return pinnedSeries || hoveredSeries || null;
+  }
+
+  function gaussian(x, mu, sigma, amp) {
+    return amp * Math.exp(-Math.pow(x - mu, 2) / (2 * sigma * sigma));
+  }
+
+  function buildData(seed) {
+    const points = [];
+    for (let i = 0; i <= 288; i++) {
+      const day  = Math.floor(i / 96);
+      const hour = (i % 96) / 4;
+      const sun  = Math.max(0, Math.sin((hour - 6) / 12 * Math.PI));
+      const clouds = 1 - 0.5*gaussian(hour,9.2,0.28,1) - 0.35*gaussian(hour,14.2,0.2,1) - 0.25*gaussian(hour,16.4,0.35,1);
+      let y = (42 + seed * 1.7) * sun * clouds;
+      y += (Math.sin(i * 1.9 + seed) + Math.sin(i * .37)) * 2;
+      points.push([i, Math.max(0, Math.round(y * 100) / 100)]);
+    }
+    return points;
+  }
+
+  const dataMap = {};
+  seriesMeta.forEach((m, idx) => { dataMap[m.name] = buildData(idx); });
+
+  function axisLabel(value) {
+    const day  = Math.floor(value / 96);
+    const hour = (value % 96) / 4;
+    const hh   = Math.floor(hour).toString().padStart(2, '0');
+    const dates = ['17. May', '18. May', '19. May'];
+    if (Math.abs(hour) < 0.01 || Math.abs(hour - 12) < 0.01) return `${hh}:00\n${dates[day] || ''}`;
+    return '';
+  }
+
+
+  // ── Build full echarts option (for init + pin/unpin only) ──
+  function buildOption(activeName) {
+    return {
+      animation: false,
+      grid: { left: 60, right: 40, top: 12, bottom: 52, containLabel: false },
+      tooltip: { show: false },
+      xAxis: {
+        type: 'value', min: 0, max: 288, interval: 48,
+        axisLabel: { formatter: axisLabel, color: '#555', fontSize: 10, margin: 10 },
+        axisLine: { lineStyle: { color: '#cfd8e6' } },
+        axisTick: { show: false },
+        splitLine: { show: false }
+      },
+      yAxis: {
+        type: 'value', min: 0, max: 60, interval: 10,
+        name: 'kW', nameLocation: 'middle', nameGap: 40,
+        axisLabel: { color: '#555', fontSize: 10 },
+        axisLine: { show: true, lineStyle: { color: '#cfd8e6' } },
+        splitLine: { lineStyle: { color: '#e2e2e2' } }
+      },
+      series: seriesMeta.map(meta => {
+        const isFocused = activeName === meta.name;
+        const isDimmed  = activeName !== null && !isFocused;
+        return {
+          name: meta.name, type: 'line', data: dataMap[meta.name],
+          symbol: 'none', smooth: true,
+          lineStyle: { color: meta.color, width: isFocused ? 2.5 : 1.5, opacity: isDimmed ? 0.08 : 1 },
+          itemStyle: { color: meta.color },
+          z: isFocused ? 10 : 1
+        };
+      })
+    };
+  }
+
+  // ── Legend: full DOM rebuild (init + pin/unpin) ──
+  function renderLegend(activeName) {
+    legendRow.innerHTML = '';
+    seriesMeta.forEach(meta => {
+      const isDimmed = activeName !== null && activeName !== meta.name;
+      const isActive = activeName === meta.name;
+      const item = document.createElement('div');
+      item.className = `legend-item${isDimmed ? ' dim' : ''}`;
+      item.dataset.series = meta.name;
+      item.style.cssText = isActive
+        ? 'outline:2px solid ' + meta.color + ';outline-offset:1px;border-radius:3px;padding:2px 4px;background:rgba(0,0,0,.03);'
+        : '';
+      item.innerHTML = `
+        <div class="legend-bar" style="background:${meta.color}"></div>
+        <div>
+          <div class="leg-name" style="font-weight:${isActive ? '700' : '400'}">${meta.name}</div>
+          <div style="color:#666;font-size:10px">${meta.device}</div>
+          <div class="legend-value">${meta.value}</div>
+        </div>`;
+      item.onclick = () => handleFocus(meta.name);
+      // In focus mode, hovering a legend item also focuses it
+      item.onmouseenter = () => {
+        if (!focusMode || pinnedSeries) return;
+        if (hoveredSeries === meta.name) return;
+        hoveredSeries = meta.name;
+        applyHover();
+      };
+      legendRow.appendChild(item);
+    });
+  }
+
+  // ── Current visible row index ──
+  let _currentRow = 0;
+
+  // ── Snap legend scroll to a specific row index ──
+  function snapToRow(rowIdx) {
+    const rows = legendRow._rowTops || [0];
+    rowIdx = Math.max(0, Math.min(rowIdx, rows.length - 1));
+    _currentRow = rowIdx;
+    legendRow.scrollTop = rows[rowIdx];
+  }
+
+  // ── Scroll legend to the row containing the active series ──
+  function scrollLegendToActive(activeName) {
+    if (!activeName) { snapToRow(0); return; }
+    const map = legendRow._seriesRowMap || {};
+    const targetRow = (activeName in map) ? map[activeName] : 0;
+    snapToRow(targetRow);
+  }
+
+  // ── Legend: CSS-only dim (hover — no DOM rebuild, no flicker) ──
+  function updateLegendDim(activeName) {
+    legendRow.querySelectorAll('.legend-item').forEach(el => {
+      const sName = el.dataset.series;
+      const mine  = sName === activeName;
+      el.classList.toggle('dim', activeName !== null && !mine);
+      const n = el.querySelector('.leg-name');
+      if (n) n.style.fontWeight = mine ? '700' : '400';
+      if (mine) {
+        const meta = seriesMeta.find(m => m.name === sName);
+        const col  = meta ? meta.color : '#888';
+        el.style.cssText = `outline:2px solid ${col};outline-offset:1px;border-radius:3px;padding:2px 4px;background:rgba(0,0,0,.03);`;
+      } else {
+        el.style.cssText = '';
+      }
+    });
+    // Snap to the row containing the active item (or back to row 1 if none)
+    scrollLegendToActive(activeName);
+  }
+
+  // ── Full rerender: rebuild chart (notMerge) + legend DOM ──
+  function rerender() {
+    const active = getActiveSeries();
+    chart.setOption(buildOption(active), true); // notMerge=true: clean slate
+    renderLegend(active);
+    // Three rAF passes: 1) let DOM paint, 2) measure+set height, 3) snap scroll
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      setLegendHeight();
+      requestAnimationFrame(() => { if (active) scrollLegendToActive(active); });
+    }));
+  }
+
+  // Measure where row 2 starts by finding the first item whose offsetTop
+  // is greater than the first item's offsetTop. Cap maxHeight so exactly
+  // one row is visible and the legend scrolls vertically for the rest.
+  function setLegendHeight() {
+    const items = legendRow.querySelectorAll('.legend-item');
+    if (!items.length) return;
+
+    // Step 1: unlock completely so all rows render at natural height
+    legendRow.style.height    = 'auto';
+    legendRow.style.overflowY = 'visible';
+    legendRow.style.overflowX = 'visible';
+    void legendRow.offsetHeight; // force reflow
+
+    // Step 2: measure directly on live items — no clone needed for height
+    const firstTop = items[0].offsetTop;
+
+    // Collect unique row tops from live items
+    const topSet = new Set();
+    items.forEach(el => topSet.add(el.offsetTop));
+    const rowTops = Array.from(topSet).sort((a, b) => a - b);
+
+    // Height = bottom of the tallest row-0 item, measured live
+    let oneRowH = 0;
+    items.forEach(el => {
+      if (el.offsetTop === firstTop) {
+        const bot = el.getBoundingClientRect().bottom - legendRow.getBoundingClientRect().top;
+        oneRowH = Math.max(oneRowH, bot);
+      }
+    });
+    // Add bottom padding so items aren't flush against the clip edge
+    const liveStyle = window.getComputedStyle(legendRow);
+    oneRowH += parseFloat(liveStyle.paddingBottom) || 6;
+
+    // Step 3: build seriesName->rowIndex map (still use clone so we don't need items unlocked)
+    const probe = legendRow.cloneNode(true);
+    probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;height:auto;overflow:visible;width:' + legendRow.offsetWidth + 'px;left:-9999px;top:0';
+    document.body.appendChild(probe);
+    void probe.offsetHeight;
+    const cloneItems = probe.querySelectorAll('.legend-item');
+    const cloneTopSet = new Set();
+    cloneItems.forEach(el => cloneTopSet.add(el.offsetTop));
+    const cloneRowTops = Array.from(cloneTopSet).sort((a,b) => a - b);
+    const seriesRowMap = {};
+    cloneItems.forEach(el => {
+      if (el.dataset.series) seriesRowMap[el.dataset.series] = cloneRowTops.indexOf(el.offsetTop);
+    });
+    document.body.removeChild(probe);
+
+    // Step 4: liveRowTops for snapToRow — row 0 scrollTop=0, row 1 scrollTop=oneRowH, etc.
+    const liveRowTops = cloneRowTops.map((_, i) => i * oneRowH);
+
+    legendRow._rowTops      = liveRowTops;
+    legendRow._seriesRowMap = seriesRowMap;
+
+    // Step 5: lock height and re-enable scroll
+    legendRow.style.overflowY = 'scroll';
+    legendRow.style.overflowX = 'hidden';
+    legendRow.style.height    = oneRowH + 'px';
+
+    // Step 6: snap to current row
+    _currentRow = Math.min(_currentRow, liveRowTops.length - 1);
+    legendRow.scrollTop = liveRowTops[_currentRow] || 0;
+  }
+
+  // ── Hover: MERGE setOption + CSS legend update ──
+  let _lastApplied = undefined; // track what was last applied to avoid redundant calls
+  function applyHover() {
+    const active = pinnedSeries || hoveredSeries || null;
+    if (_lastApplied === active) return; // nothing changed, skip
+    _lastApplied = active;
+    chart.setOption({
+      series: seriesMeta.map(meta => ({
+        name: meta.name,
+        type: 'line',
+        lineStyle: {
+          color:   meta.color,
+          opacity: (active !== null && meta.name !== active) ? 0.08 : 1,
+          width:   meta.name === active ? 2.5 : 1.5
+        },
+        z: meta.name === active ? 10 : 1
+      }))
+    });
+    updateLegendDim(active);
+  }
+
+  function handleFocus(name) {
+    pinnedSeries = pinnedSeries === name ? null : name;
+    hoveredSeries = null;
+    _lastApplied = undefined;
+    if (pinnedSeries && !focusMode) { focusMode = true; focusSwitch.classList.add('on'); }
+    rerender();
+  }
+
+  focusSwitch.onclick = () => {
+    focusMode = !focusMode;
+    focusSwitch.classList.toggle('on', focusMode);
+    if (!focusMode) { pinnedSeries = null; hoveredSeries = null; }
+    _lastApplied = undefined;
+    rerender();
+  };
+
+  document.querySelectorAll('.switch').forEach(sw => {
+    if (sw.id === 'focusSwitch') return;
+    sw.onclick = () => sw.classList.toggle('on');
+  });
+
+  // ── Native DOM mousemove — find closest series by pixel distance ──
+  // ECharts mouseover/mousemove don't fire reliably when symbol:'none'.
+  // Instead we walk every series' data, convert to pixel coords, find nearest.
+  function findClosestSeries(mouseX, mouseY) {
+    const THRESHOLD = 28; // px — max distance to count as "on" a line
+    let bestName = null;
+    let bestDist = THRESHOLD;
+
+    seriesMeta.forEach(meta => {
+      const pts = dataMap[meta.name];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p1 = chart.convertToPixel('grid', pts[i]);
+        const p2 = chart.convertToPixel('grid', pts[i + 1]);
+        if (!p1 || !p2) continue;
+        // Distance from mouse to segment p1→p2
+        const dx = p2[0] - p1[0], dy = p2[1] - p1[1];
+        const lenSq = dx * dx + dy * dy;
+        let t = lenSq > 0 ? ((mouseX - p1[0]) * dx + (mouseY - p1[1]) * dy) / lenSq : 0;
+        t = Math.max(0, Math.min(1, t));
+        const nx = p1[0] + t * dx, ny = p1[1] + t * dy;
+        const dist = Math.sqrt((mouseX - nx) ** 2 + (mouseY - ny) ** 2);
+        if (dist < bestDist) { bestDist = dist; bestName = meta.name; }
+      }
+    });
+    return bestName;
+  }
+
+  chartDom.addEventListener('mousemove', e => {
+    if (!focusMode || pinnedSeries) return;
+    const rect = chartDom.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const found = findClosestSeries(mx, my);
+    if (found === hoveredSeries) return;
+    hoveredSeries = found;
+    applyHover();
+  });
+
+  chartDom.addEventListener('mouseleave', () => {
+    if (pinnedSeries) return;
+    if (focusMode) return; // keep last highlight sticky in focus mode
+    if (hoveredSeries === null) return;
+    hoveredSeries = null;
+    applyHover();
+  });
+
+  // ── ECharts events (still needed for tooltip + click) ──
+  chart.on('mouseover', params => {
+    if (!focusMode && !pinnedSeries && params.seriesName) {
+      // non-focus mode fallback
+      if (hoveredSeries === params.seriesName) return;
+      hoveredSeries = params.seriesName;
+      applyHover();
+    }
+  });
+  chart.on('globalout', () => {
+    if (pinnedSeries) return;
+    if (focusMode) return;
+    if (hoveredSeries === null) return;
+    hoveredSeries = null;
+    applyHover();
+  });
+  chartDom.addEventListener('click', e => {
+    if (!focusMode) return;
+    const rect = chartDom.getBoundingClientRect();
+    const found = findClosestSeries(e.clientX - rect.left, e.clientY - rect.top);
+    if (found) handleFocus(found);
+  });
+
+  chart.on('click', params => {
+    if (!focusMode && params.seriesName) handleFocus(params.seriesName);
+  });
+  chart.on('dblclick', () => {
+    focusMode = false; pinnedSeries = null; hoveredSeries = null;
+    _lastApplied = undefined;
+    focusSwitch.classList.remove('on');
+    rerender();
+  });
+
+  window.addEventListener('resize', () => { chart.resize(); applyTableRowLimit(); });
+
+  // Tabs (cosmetic)
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // COLLAPSIBLE FILTER PANEL
+  // ─────────────────────────────────────────────
+  const filterPanel      = document.getElementById('filterPanel');
+  const filterToggleBar  = document.getElementById('filterToggleBar');
+  let filterCollapsed    = false;
+
+  filterToggleBar.addEventListener('click', () => {
+    filterCollapsed = !filterCollapsed;
+    filterPanel.classList.toggle('collapsed', filterCollapsed);
+    filterToggleBar.classList.toggle('collapsed', filterCollapsed);
+    // Trigger chart resize after transition
+    setTimeout(() => { chart.resize(); applyTableRowLimit(); }, 240);
+  });
+
+  // ─────────────────────────────────────────────
+  // LOCK BUTTON
+  // ─────────────────────────────────────────────
+  const lockBtn = document.getElementById('lockBtn');
+  const resizer = document.getElementById('resizer');
+
+  lockBtn.addEventListener('click', () => {
+    isLocked = !isLocked;
+    lockBtn.classList.toggle('locked', isLocked);
+    lockBtn.textContent = isLocked ? '🔒 Locked' : '🔓 Lock Layout';
+    resizer.classList.toggle('disabled', isLocked);
+    document.querySelectorAll('.move-icon').forEach(el => {
+      el.classList.toggle('locked', isLocked);
+      el.draggable = !isLocked;
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // LAYOUT — drag the ⠿ handle to reorder panels
+  // Drop zone logic:
+  //   - if you drag into the left 30% or right 30% of the target → side-by-side
+  //   - otherwise → top/bottom (stacked)
+  // ─────────────────────────────────────────────
+  function setLayout(layout) {
+    content.classList.remove('table-top', 'side-by-side', 'reverse');
+    if (layout === 'table-top')            content.classList.add('table-top');
+    if (layout === 'side-by-side')         content.classList.add('side-by-side');
+    if (layout === 'side-by-side reverse') content.classList.add('side-by-side', 'reverse');
+    layoutIndex = layouts.indexOf(layout);
+
+    const isSide = layout.includes('side-by-side');
+    resizer.className = `resizer ${isSide ? 'v' : 'h'}${isLocked ? ' disabled' : ''}`;
+    resizer.innerHTML = '<div class="grip"><span></span><span></span><span></span></div>';
+
+    // Reset to 60/40 split
+    content.style.setProperty('--chart-pct', '60%');
+    content.style.setProperty('--split-pct', '60%');
+
+    setTimeout(() => { chart.resize(); applyTableRowLimit(); }, 60);
+  }
+
+  document.querySelectorAll('.move-icon').forEach(handle => {
+    handle.addEventListener('dragstart', event => {
+      if (isLocked) { event.preventDefault(); return; }
+      draggedPanel = handle.dataset.panel;
+      handle.closest('.panel-card').classList.add('dragging');
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', draggedPanel);
+    });
+    handle.addEventListener('dragend', () => {
+      draggedPanel = null;
+      document.querySelectorAll('.panel-card').forEach(c => c.classList.remove('dragging', 'drag-over'));
+    });
+  });
+
+  document.querySelectorAll('.panel-card').forEach(card => {
+    card.addEventListener('dragover', event => {
+      if (!draggedPanel || isLocked) return;
+      event.preventDefault();
+      card.classList.add('drag-over');
+      event.dataTransfer.dropEffect = 'move';
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', event => {
+      if (!draggedPanel || isLocked) return;
+      event.preventDefault();
+
+      const cardRect = card.getBoundingClientRect();
+      const relX = event.clientX - cardRect.left;
+      const relY = event.clientY - cardRect.top;
+      const xPct = relX / cardRect.width;
+      const yPct = relY / cardRect.height;
+
+      // If drop lands in left 28% or right 28% of the target card → side-by-side
+      // Otherwise → stacked top/bottom
+      let nextLayout;
+      const wantSide = xPct < 0.28 || xPct > 0.72;
+
+      if (wantSide) {
+        // drop on left side of target → dragged goes left; right side → dragged goes right
+        if (draggedPanel === 'chart') {
+          nextLayout = xPct < 0.5 ? 'side-by-side' : 'side-by-side reverse';
+        } else {
+          nextLayout = xPct < 0.5 ? 'side-by-side reverse' : 'side-by-side';
+        }
+      } else {
+        // stacked: top half of target → dragged goes above; bottom half → below
+        if (draggedPanel === 'chart') {
+          nextLayout = yPct < 0.5 ? 'default' : 'table-top';
+        } else {
+          nextLayout = yPct < 0.5 ? 'table-top' : 'default';
+        }
+      }
+
+      setLayout(nextLayout);
+      document.querySelectorAll('.panel-card').forEach(c => c.classList.remove('dragging', 'drag-over'));
+      draggedPanel = null;
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // RESIZER — pixel-based, works for both axes
+  // Uses getBoundingClientRect of the chart panel
+  // so both panels genuinely resize together.
+  // ─────────────────────────────────────────────
+  let isResizing     = false;
+  let resizeStartMouse = 0;  // clientX or clientY at drag start
+  let resizeStartPx    = 0;  // pixel size of chart panel at drag start
+
+  function startResize(e) {
+    if (isLocked) return;
+    const isSide    = content.classList.contains('side-by-side');
+    const chartCard = content.querySelector('.chart-card');
+    const chartRect = chartCard.getBoundingClientRect();
+    const contRect  = content.getBoundingClientRect();
+
+    isResizing       = true;
+    resizeStartMouse = isSide ? e.clientX : e.clientY;
+    resizeStartPx    = isSide ? chartRect.width : chartRect.height;
+    // Store total content size for % calculation
+    startResize._total = isSide ? contRect.width : contRect.height;
+
+    resizer.classList.add('active');
+    document.body.style.cursor     = isSide ? 'ew-resize' : 'ns-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onResize);
+    document.addEventListener('mouseup',   stopResize);
+    e.preventDefault();
+  }
+
+  function onResize(e) {
+    if (!isResizing) return;
+    const isSide    = content.classList.contains('side-by-side');
+    const isReverse = content.classList.contains('reverse') || content.classList.contains('table-top');
+    const mouse     = isSide ? e.clientX : e.clientY;
+    const delta     = mouse - resizeStartMouse;
+    const total     = startResize._total;
+    // In table-top or side-by-side reverse, chart panel is the second flex item
+    // so dragging the resizer towards the chart shrinks it → invert delta
+    const adjustedDelta = isReverse ? -delta : delta;
+    const newPx  = resizeStartPx + adjustedDelta;
+    const minPx  = total * 0.18;
+    const maxPx  = total * 0.82;
+    const clampedPx = Math.min(maxPx, Math.max(minPx, newPx));
+    const pct = (clampedPx / total * 100).toFixed(1);
+    content.style.setProperty(isSide ? '--split-pct' : '--chart-pct', `${pct}%`);
+    chart.resize();
+  }
+
+  function stopResize() {
+    if (!isResizing) return;
+    isResizing = false;
+    resizer.classList.remove('active');
+    document.body.style.cursor     = '';
+    document.body.style.userSelect = '';
+    document.removeEventListener('mousemove', onResize);
+    document.removeEventListener('mouseup',   stopResize);
+    chart.resize();
+    applyTableRowLimit();
+  }
+
+  // Touch support
+  resizer.addEventListener('touchstart', e => {
+    if (isLocked) return;
+    const t = e.touches[0];
+    startResize({ clientX: t.clientX, clientY: t.clientY, preventDefault: () => e.preventDefault() });
+  }, { passive: false });
+  document.addEventListener('touchmove', e => {
+    if (!isResizing) return;
+    onResize({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+  }, { passive: true });
+  document.addEventListener('touchend', stopResize);
+
+  resizer.addEventListener('mousedown', startResize);
+
+  // ─────────────────────────────────────────────
+  // TABLE HEIGHT — fills available panel space, scrolls internally
+  // Best UX: no arbitrary row cap. Table takes what it gets from the
+  // resizer and scrolls if content overflows. Badge shows overflow count.
+  // ─────────────────────────────────────────────
+  function applyTableRowLimit() {
+    const wrap      = document.getElementById('tableWrap');
+    const tablePanel = document.getElementById('tablePanel');
+    const header    = tablePanel.querySelector('.table-card-header');
+    const thead     = wrap.querySelector('thead tr');
+    const rows      = wrap.querySelectorAll('tbody tr');
+    if (!rows.length) return;
+
+    // Remove fixed maxHeight — let the panel's flex size control it naturally
+    wrap.style.maxHeight = '';
+
+    // Update badge: count how many rows are scrolled out of view
+    const rowH   = rows[0].getBoundingClientRect().height || 26;
+    const thH    = thead ? thead.getBoundingClientRect().height || 28 : 28;
+    const hdH    = header ? header.getBoundingClientRect().height || 28 : 28;
+    const panelH = tablePanel.getBoundingClientRect().height;
+    const visibleRows = Math.max(0, Math.floor((panelH - hdH - thH) / rowH));
+    const badge  = document.getElementById('scrollBadge');
+    const total  = rows.length;
+    if (badge) badge.textContent = total > visibleRows ? `↓ ${total - visibleRows} more` : '';
+  }
+
+  // ─────────────────────────────────────────────
+  // LEGEND CYCLE BUTTONS
+  // ─────────────────────────────────────────────
+  // Snap to nearest row after manual scroll ends — prevents half-row bleed
+  let _scrollSnapTimer = null;
+  legendRow.addEventListener('scroll', () => {
+    clearTimeout(_scrollSnapTimer);
+    _scrollSnapTimer = setTimeout(() => {
+      const rows = legendRow._rowTops || [0];
+      const st   = legendRow.scrollTop;
+      // Find the closest row top
+      let nearest = 0;
+      let minDist = Infinity;
+      rows.forEach((top, i) => {
+        const d = Math.abs(st - top);
+        if (d < minDist) { minDist = d; nearest = i; }
+      });
+      snapToRow(nearest);
+    }, 80);
+  });
+
+  // Recalculate on every resize so one-row height is always correct
+  new ResizeObserver(() => {
+    requestAnimationFrame(setLegendHeight);
+  }).observe(legendRow);
+
+  // ─────────────────────────────────────────────
+  // INIT
+  // ─────────────────────────────────────────────
+  rerender();
+  requestAnimationFrame(() => {
+    chart.resize();
+    setLegendHeight();
+    setTimeout(applyTableRowLimit, 100);
+  });
+</script>
+</body>
+</html>
